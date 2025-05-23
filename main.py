@@ -3,83 +3,122 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import Select
 import time
+import os
+from datetime import datetime
 
-driver=webdriver.Chrome()
-driver.get("https://demoqa.com/automation-practice-form")
+
+def capturar_pantalla(driver, nombre_archivo):
+    """Toma una captura de pantalla y la guarda en una carpeta 'screenshots'"""
+    # Crear carpeta si no existe
+    if not os.path.exists('screenshots'):
+        os.makedirs('screenshots')
+    
+    # Generar nombre del archivo con timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ruta_archivo = f"screenshots/{nombre_archivo}_{timestamp}.png"
+    
+    # Tomar captura
+    driver.save_screenshot(ruta_archivo)
+    print(f"Captura guardada: {ruta_archivo}")
+    return ruta_archivo
 
 def get_driver():
-    
     options = webdriver.ChromeOptions()
     options.add_argument("start-maximized")
     options.add_argument("--disable-gpu")
-    # options.add_argument("--headless")
     options.add_argument("--incognito")
     
-    driver = webdriver.Chrome(options)
-    driver.get("https://demoqa.com/automation-practice-form")
+    driver = webdriver.Chrome(options=options)
+    driver.get("https://demoqa.com/register")
     return driver
 
-def datos_texto_formulario(driver):
-    datos : dict[str,str] = {
-            "firstName": "jesus",
-            "lastName": "david",
-            "userEmail": "anachurycastro@gmail.com",
-            "userNumber": "3112445754",
-            "subjectsInput": "Maths",
-            "currentAddress": "Calle 12 # 45 - 67",
-}
+# Inicializar el navegador
+driver = get_driver()
+
+# Tomar captura del formulario vacío
+capturar_pantalla(driver, "formulario_vacio")
+
+
+
+def datos_formulario_registro(driver):
+    # Datos de registro completos
+    datos_registro = {
+        "firstname": "Jesus",
+        "lastname": "Anachury",
+        "userName": "janachury" + str(int(time.time())),  # Nombre de usuario único
+        "password": "P@ssw0rd123",
+        "confirmPassword": "P@ssw0rd123"  # Asegurarse de que coincida con la contraseña
+    }
     
-    for id_pag in datos:
-        texto: str = datos[id_pag]
-        driver.find_element(By.ID, id_pag).send_keys(texto)
-        time.sleep(3)
-
-def seleccionar_genero(driver):
-    driver.find_element(By.XPATH, "//label[text()='Male']").click()
-    time.sleep(0.5)
-
-
-def seleccionar_hobbies(driver):
-    driver.find_element(By.XPATH, "//label[text()='Sports']").click()
-    driver.find_element(By.XPATH, "//label[text()='Music']").click()
-    time.sleep(0.5)
+    print("Llenando formulario de registro...")
     
-def seleccionar_fecha_nacimiento(driver):
-
-    driver.find_element(By.ID, "dateOfBirthInput").click()
-    time.sleep(0.5)
-
-    driver.find_element(By.CLASS_NAME, "react-datepicker__month-select").send_keys("April")
-
-    driver.find_element(By.CLASS_NAME, "react-datepicker__year-select").send_keys("1990")
-
-    driver.find_element(By.XPATH, "//div[contains(@class, 'react-datepicker__day') and text()='15']").click()
-    time.sleep(0.5)
-
-def seleccionar_estado_y_ciudad(driver):
-
-    driver.find_element(By.ID, "state").click()
-    driver.find_element(By.XPATH, "//div[text()='NCR']").click()
-    time.sleep(0.5)
-
-    driver.find_element(By.ID, "city").click()
-    driver.find_element(By.XPATH, "//div[text()='Colombia']").click()
-    time.sleep(0.5)
+    # Llenar cada campo del formulario
+    for campo, valor in datos_registro.items():
+        try:
+            # Algunos campos pueden necesitar un selector diferente
+            if campo == "country":
+                # Para el campo de país que es un select
+                select = Select(driver.find_element(By.ID, "country"))
+                select.select_by_visible_text(valor)
+            elif campo == "state":
+                # Algunos campos pueden necesitar un selector específico
+                driver.find_element(By.ID, "state").send_keys(valor)
+            else:
+                # Para la mayoría de los campos de entrada de texto
+                elemento = driver.find_element(By.ID, campo)
+                elemento.clear()
+                elemento.send_keys(valor)
+                
+            print(f"Campo '{campo}' completado")
+            time.sleep(0.5)  # Pequeña pausa entre campos
+            
+        except Exception as e:
+            print(f"Error al llenar el campo {campo}: {str(e)}")
     
+    # Hacer clic en el botón de registro
+    try:
+        # Tomar captura antes de enviar el formulario
+        capturar_pantalla(driver, "antes_de_enviar")
+        
+        # Enviar formulario
+        driver.find_element(By.ID, "register").click()
+        print("Formulario de registro enviado")
+        time.sleep(2)
+        
+        # Tomar captura después de enviar el formulario
+        capturar_pantalla(driver, "despues_de_enviar")
+        
+    except Exception as e:
+        capturar_pantalla(driver, "error_en_formulario")
+        print(f"Error al enviar el formulario: {str(e)}")
+
+
+
+def hacer_login(driver, usuario, contraseña):
+    # Ir a la página de login
+    driver.get("https://demoqa.com/login")
+    time.sleep(2)
+    
+    # Llenar credenciales
+    driver.find_element(By.ID, "userName").send_keys(usuario)
+    driver.find_element(By.ID, "password").send_keys(contraseña)
+    
+    # Hacer clic en el botón de login
+    driver.find_element(By.ID, "login").click()
+    time.sleep(2)
+    
+    
+   
+
 def main():
-    driver: webdriver = get_driver()
-    datos_texto_formulario(driver)
-    seleccionar_genero(driver)
-    seleccionar_hobbies(driver)
-    seleccionar_fecha_nacimiento(driver)
-    seleccionar_estado_y_ciudad(driver)
-    driver.find_element(By.ID, "dateOfBirthInput").click()
-    driver.save_screenshot("Antes_de_enviar.png")
-    driver.find_element(By.ID, "submit").submit()
-    driver.save_screenshot("despues_de_enviar.png")
-
+    datos_formulario_registro(driver=driver)
+    hacer_login(driver=driver, usuario="anachury", contraseña="anachury15")
+   
+    
+   
+    # Cerrar el navegador
     time.sleep(2)
     driver.quit()
-    
+
 if __name__ == "__main__":
     main()
